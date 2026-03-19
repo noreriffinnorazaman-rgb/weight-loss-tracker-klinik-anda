@@ -1,7 +1,7 @@
 import { Patient, ProgramType, PenNumber, Measurement } from "./types";
 
 const STORAGE_KEY = "klinik-anda-weight-loss-data";
-const USE_SHEETS_API = process.env.NEXT_PUBLIC_USE_SHEETS_API === "true";
+const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
 
 const initialPatients: Patient[] = [
   {
@@ -79,14 +79,17 @@ const initialPatients: Patient[] = [
 ];
 
 export async function getPatients(): Promise<Patient[]> {
-  if (USE_SHEETS_API) {
+  if (APPS_SCRIPT_URL) {
     try {
-      const response = await fetch("/api/patients");
+      const response = await fetch(APPS_SCRIPT_URL);
       if (response.ok) {
-        return await response.json();
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          return data;
+        }
       }
     } catch (error) {
-      console.error("Error fetching from API, using localStorage:", error);
+      console.error("Error fetching from Apps Script, using localStorage:", error);
     }
   }
 
@@ -100,15 +103,15 @@ export async function getPatients(): Promise<Patient[]> {
 }
 
 export async function savePatients(patients: Patient[]): Promise<void> {
-  if (USE_SHEETS_API) {
+  if (APPS_SCRIPT_URL) {
     try {
-      await fetch("/api/patients", {
+      await fetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patients),
+        body: JSON.stringify({ action: "write", patients }),
       });
     } catch (error) {
-      console.error("Error saving to API:", error);
+      console.error("Error saving to Apps Script:", error);
     }
   }
 
