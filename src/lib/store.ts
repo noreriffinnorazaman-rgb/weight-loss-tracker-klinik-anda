@@ -3,7 +3,7 @@ import { Patient, ProgramType, PenNumber, Measurement } from "./types";
 const STORAGE_KEY = "klinik-anda-weight-loss-data";
 const APPS_SCRIPT_URL =
   process.env.NEXT_PUBLIC_APPS_SCRIPT_URL ||
-  "https://script.google.com/macros/s/AKfycbzuTM94mh_woq9tPKxYKL-U81FRpYPslrPHnFHF3Fpc959JukRKocgq0pOJe1z4zUIohw/exec";
+  "https://script.google.com/macros/s/AKfycbyaony637VGduYUBC_VxP-SijfK1ZxZqysvannYcmsGHz22Cj1Scdo6IMB4ha6j9i25BQ/exec";
 
 // ============================================================
 // Fallback initial data (only used if Sheets is unreachable)
