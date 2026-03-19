@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Patient, ProgramType, PenNumber, Measurement } from "@/lib/types";
 import {
   getPatients,
@@ -10,7 +10,7 @@ import {
   addPenRecord,
   updatePatientProgram,
 } from "@/lib/store";
-import { ArrowLeft, User, Calendar, Pill } from "lucide-react";
+import { ArrowLeft, User, Calendar, Pill, Search, Filter } from "lucide-react";
 import Header from "@/components/Header";
 import StatsCards from "@/components/StatsCards";
 import PatientTable from "@/components/PatientTable";
@@ -23,21 +23,55 @@ import WaistChart from "@/components/WaistChart";
 import MeasurementTable from "@/components/MeasurementTable";
 import PenRecordForm from "@/components/PenRecordForm";
 
+type SyncStatus = "synced" | "syncing" | "offline" | "error";
+
 export default function Home() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("syncing");
+  const [lastSync, setLastSync] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterProgram, setFilterProgram] = useState<string>("all");
+  const [isLoading, setIsLoading] = useState(false);
+  const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
 
-  const refresh = useCallback(async () => {
-    const data = await getPatients();
-    setPatients(data);
+  const formatTime = () => {
+    return new Date().toLocaleTimeString("en-MY", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const refresh = useCallback(async (showLoading = false) => {
+    if (showLoading) setIsLoading(true);
+    setSyncStatus("syncing");
+    try {
+      const data = await getPatients();
+      setPatients(data);
+      setSyncStatus("synced");
+      setLastSync(formatTime());
+    } catch {
+      setSyncStatus("error");
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     setMounted(true);
-    refresh();
+    refresh(true);
+
+    // Auto-refresh every 30 seconds
+    autoRefreshRef.current = setInterval(() => {
+      refresh(false);
+    }, 30000);
+
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
   }, [refresh]);
 
   const handleAddPatient = async (data: {
@@ -46,6 +80,7 @@ export default function Home() {
     program: ProgramType;
     baseline: Measurement;
   }) => {
+    setSyncStatus("syncing");
     await addPatient({
       name: data.name,
       dob: data.dob,
@@ -62,6 +97,7 @@ export default function Home() {
   };
 
   const handleDelete = async (id: string) => {
+    setSyncStatus("syncing");
     await deletePatient(id);
     await refresh();
   };
@@ -72,6 +108,7 @@ export default function Home() {
         "Reset all data to original? This will remove all progress records."
       )
     ) {
+      setSyncStatus("syncing");
       await resetData();
       await refresh();
     }
@@ -89,6 +126,7 @@ export default function Home() {
 
   const handleSaveRecord = async (penNumber: PenNumber, measurement: Measurement) => {
     if (!selectedPatientId) return;
+    setSyncStatus("syncing");
     await addPenRecord(selectedPatientId, penNumber, measurement);
     await refresh();
     setShowForm(false);
@@ -96,14 +134,30 @@ export default function Home() {
 
   const handleProgramChange = async (program: ProgramType) => {
     if (!selectedPatientId) return;
+    setSyncStatus("syncing");
     await updatePatientProgram(selectedPatientId, program);
     await refresh();
   };
 
+  // Filter patients by search and program
+  const filteredPatients = patients.filter((p) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.dob.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(p.no).includes(searchQuery);
+    const matchesProgram =
+      filterProgram === "all" || p.program === filterProgram;
+    return matchesSearch && matchesProgram;
+  });
+
   if (!mounted) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50">
+        <div className="animate-spin w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full" />
+        <p className="text-slate-500 text-sm font-medium animate-pulse">
+          Loading patient data from Google Sheets...
+        </p>
       </div>
     );
   }
@@ -120,11 +174,16 @@ export default function Home() {
 
     return (
       <div className="min-h-screen bg-slate-50">
-        <Header showActions={false} />
+        <Header
+          showActions={false}
+          syncStatus={syncStatus}
+          lastSync={lastSync}
+          onBack={handleBackToDashboard}
+        />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* Back button + Patient info */}
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between flex-wrap gap-4">
             <div className="flex items-start gap-4">
               <button
                 onClick={handleBackToDashboard}
@@ -250,11 +309,64 @@ export default function Home() {
       <Header
         onAddPatient={() => setShowAddModal(true)}
         onReset={handleReset}
+        onRefresh={() => refresh(true)}
+        syncStatus={syncStatus}
+        lastSync={lastSync}
+        onBack={handleBackToDashboard}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <StatsCards patients={patients} />
-        <PatientTable patients={patients} onDelete={handleDelete} onSelect={handleSelectPatient} />
+
+        {/* Search & Filter Bar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search patients by name, DOB, or number..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-400" />
+            <select
+              value={filterProgram}
+              onChange={(e) => setFilterProgram(e.target.value)}
+              className="px-3 py-2.5 border border-slate-200 rounded-xl bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none cursor-pointer"
+            >
+              <option value="all">All Programmes</option>
+              <option value="Ozempic">Ozempic</option>
+              <option value="Wegovy">Wegovy</option>
+              <option value="Mounjaro">Mounjaro</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Loading overlay */}
+        {isLoading && (
+          <div className="flex items-center justify-center gap-3 py-4">
+            <div className="animate-spin w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full" />
+            <span className="text-sm text-slate-500">Fetching latest data...</span>
+          </div>
+        )}
+
+        <PatientTable
+          patients={filteredPatients}
+          onDelete={handleDelete}
+          onSelect={handleSelectPatient}
+        />
+
+        {/* Filtered results count */}
+        {(searchQuery || filterProgram !== "all") && (
+          <p className="text-center text-sm text-slate-400">
+            Showing {filteredPatients.length} of {patients.length} patients
+            {searchQuery && <span> matching &quot;{searchQuery}&quot;</span>}
+            {filterProgram !== "all" && <span> in {filterProgram}</span>}
+          </p>
+        )}
       </main>
 
       {showAddModal && (
