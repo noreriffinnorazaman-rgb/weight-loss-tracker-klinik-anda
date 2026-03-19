@@ -2,11 +2,11 @@
 
 import { ChevronRight, Trash2 } from "lucide-react";
 import { Patient } from "@/lib/types";
-import Link from "next/link";
 
 interface PatientTableProps {
   patients: Patient[];
   onDelete: (id: string) => void;
+  onSelect: (id: string) => void;
 }
 
 function getPenProgress(patient: Patient) {
@@ -27,7 +27,7 @@ function getBadgeColor(program: string) {
   }
 }
 
-export default function PatientTable({ patients, onDelete }: PatientTableProps) {
+export default function PatientTable({ patients, onDelete, onSelect }: PatientTableProps) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-100">
@@ -90,12 +90,12 @@ export default function PatientTable({ patients, onDelete }: PatientTableProps) 
                     {patient.no}
                   </td>
                   <td className="px-6 py-4">
-                    <Link
-                      href={`/patient/${patient.id}`}
-                      className="text-sm font-semibold text-slate-800 hover:text-emerald-600 transition-colors"
+                    <button
+                      onClick={() => onSelect(patient.id)}
+                      className="text-sm font-semibold text-slate-800 hover:text-emerald-600 transition-colors cursor-pointer text-left"
                     >
                       {patient.name}
-                    </Link>
+                    </button>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-500">
                     {patient.dob}
@@ -161,12 +161,12 @@ export default function PatientTable({ patients, onDelete }: PatientTableProps) 
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      <Link
-                        href={`/patient/${patient.id}`}
-                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                      <button
+                        onClick={() => onSelect(patient.id)}
+                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                       >
                         <ChevronRight className="w-4 h-4" />
-                      </Link>
+                      </button>
                     </div>
                   </td>
                 </tr>

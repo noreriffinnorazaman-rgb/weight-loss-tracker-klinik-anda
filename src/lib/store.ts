@@ -1,7 +1,7 @@
 import { Patient, ProgramType, PenNumber, Measurement } from "./types";
 
 const STORAGE_KEY = "klinik-anda-weight-loss-data";
-const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
+const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbzuTM94mh_woq9tPKxYKL-U81FRpYPslrPHnFHF3Fpc959JukRKocgq0pOJe1z4zUIohw/exec";
 
 const initialPatients: Patient[] = [
   {
