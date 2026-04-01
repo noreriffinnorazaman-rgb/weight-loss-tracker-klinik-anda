@@ -1,14 +1,14 @@
 // Google Apps Script for Weight Loss Tracker - Klinik Anda Kangar 2026
 // Deploy this as a Web App to handle Google Sheets operations
 //
-// SPREADSHEET COLUMNS (A-P):
+// SPREADSHEET COLUMNS (A-Q):
 // A: No | B: Name | C: DOB | D: WT(kg) | E: BMI | F: Fat Mass (kg) | G: Muscle Mass(kg)
 // H: Waist Circumference (cm) | I: HbA1c(%) | J: Total cholesterol (mmol/L)
-// K: HDL | L: LDL | M: Date | N: Programme | O: Pen Number | P: Height (cm)
+// K: HDL | L: LDL | M: Date | N: Programme | O: Pen Number | P: Height (cm) | Q: Dosage (mg)
 
 var SPREADSHEET_ID = '1eq_mwt8gzjeLamRLv76l_nBB-wu4zNJjhZ6at3FTXnA';
 var SHEET_NAME = 'Sheet1';
-var NUM_COLS = 16;
+var NUM_COLS = 17;
 
 // ============================================================
 // doGet: READ patients or handle action via URL params
@@ -66,7 +66,7 @@ function handleWrite(data) {
   }
 
   if (data.action === 'addPenRecord') {
-    var r2 = addPenRecordToSheet(data.patientId, data.penNumber, data.measurement);
+    var r2 = addPenRecordToSheet(data.patientId, data.penNumber, data.measurement, data.dosage || 0);
     return jsonResponse(r2);
   }
 
@@ -151,6 +151,7 @@ function readPatients() {
 
     patients[patientId].penRecords.push({
       penNumber: parseInt(row[14]) || 0,
+      dosage: parseFloat(row[16]) || 0,
       measurement: {
         weight: weight,
         bmi: parseFloat(row[4]) || 0,
@@ -187,7 +188,7 @@ function writeAllPatients(patients) {
   var header = [
     'No', 'Name', 'DOB', 'WT(kg)', 'BMI', 'Fat Mass (kg)', 'Muscle Mass(kg)',
     'Waist Circumference (cm)', 'HbA1c(%)', 'Total cholesterol (mmol/L)',
-    'HDL', 'LDL', 'Date', 'Programme', 'Pen Number', 'Height (cm)'
+    'HDL', 'LDL', 'Date', 'Programme', 'Pen Number', 'Height (cm)', 'Dosage (mg)'
   ];
 
   sheet.clear();
@@ -213,7 +214,8 @@ function writeAllPatients(patients) {
         m.hdl || '', m.ldl || '', m.date || '',
         ri === 0 ? (patient.program || 'Ozempic') : '',
         patient.penRecords[ri].penNumber !== undefined ? patient.penRecords[ri].penNumber : 0,
-        ri === 0 ? (patient.height || 0) : ''
+        ri === 0 ? (patient.height || 0) : '',
+        patient.penRecords[ri].dosage || 0
       ]);
     }
   }
@@ -252,7 +254,8 @@ function addSinglePatient(patient) {
     m.date || new Date().toISOString().split('T')[0],
     patient.program || 'Ozempic',
     0,
-    patient.height || 0
+    patient.height || 0,
+    (patient.penRecords && patient.penRecords[0]) ? (patient.penRecords[0].dosage || 0) : 0
   ];
 
   sheet.appendRow(row);
@@ -268,7 +271,7 @@ function addSinglePatient(patient) {
       dob: patient.dob,
       height: patient.height || 0,
       program: patient.program || 'Ozempic',
-      penRecords: [{ penNumber: 0, measurement: m }]
+      penRecords: [{ penNumber: 0, dosage: (patient.penRecords && patient.penRecords[0]) ? (patient.penRecords[0].dosage || 0) : 0, measurement: m }]
     }
   };
 }
@@ -276,7 +279,7 @@ function addSinglePatient(patient) {
 // ============================================================
 // ADD PEN RECORD: Insert a new pen measurement row for a patient
 // ============================================================
-function addPenRecordToSheet(patientId, penNumber, measurement) {
+function addPenRecordToSheet(patientId, penNumber, measurement, dosage) {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var sheet = ss.getSheetByName(SHEET_NAME);
   var data = sheet.getDataRange().getValues();
@@ -303,6 +306,7 @@ function addPenRecordToSheet(patientId, penNumber, measurement) {
   }
 
   var m = measurement || {};
+  var dosageVal = dosage || 0;
   var newRow = [
     '', '', '',
     m.weight || 0, m.bmi || 0, m.fatMass || 0, m.muscleMass || 0,
@@ -311,7 +315,8 @@ function addPenRecordToSheet(patientId, penNumber, measurement) {
     m.date || new Date().toISOString().split('T')[0],
     '',
     penNumber || 0,
-    ''
+    '',
+    dosageVal
   ];
 
   sheet.insertRowAfter(lastRowIndex + 1);
@@ -398,7 +403,7 @@ function setupSpreadsheet() {
   var fullHeader = [
     'No', 'Name', 'DOB', 'WT(kg)', 'BMI', 'Fat Mass (kg)', 'Muscle Mass(kg)',
     'Waist Circumference (cm)', 'HbA1c(%)', 'Total cholesterol (mmol/L)',
-    'HDL', 'LDL', 'Date', 'Programme', 'Pen Number', 'Height (cm)'
+    'HDL', 'LDL', 'Date', 'Programme', 'Pen Number', 'Height (cm)', 'Dosage (mg)'
   ];
 
   sheet.getRange(1, 1, 1, fullHeader.length).setValues([fullHeader]);
@@ -412,6 +417,9 @@ function setupSpreadsheet() {
       }
       if (data[i][15] === '' || data[i][15] === null || data[i][15] === undefined) {
         sheet.getRange(i + 1, 16).setValue(0);
+      }
+      if (data[i][16] === '' || data[i][16] === null || data[i][16] === undefined) {
+        sheet.getRange(i + 1, 17).setValue(0);
       }
     }
   }

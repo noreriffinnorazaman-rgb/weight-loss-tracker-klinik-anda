@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -20,12 +18,54 @@ interface WeightChartProps {
 
 const penLabels = ["Baseline", "Pen 1", "Pen 2", "Pen 3", "Pen 4"];
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function CustomTooltip({ active, payload, label }: any) {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-3 text-sm">
+      <p className="font-bold text-slate-800 mb-1">{label}</p>
+      <p className="text-slate-600">Weight: <span className="font-semibold">{d.weight.toFixed(1)} kg</span></p>
+      {d.programme && (
+        <p className="text-slate-500 mt-0.5">Programme: <span className="font-semibold">{d.programme}</span></p>
+      )}
+      {d.dosage > 0 && (
+        <p className="text-slate-500">Dosage: <span className="font-semibold">{d.dosage} mg</span></p>
+      )}
+    </div>
+  );
+}
+
+function CustomXTick({ x, y, payload, chartData }: any) {
+  const entry = chartData?.find((d: any) => d.name === payload?.value);
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={14} textAnchor="middle" fontSize={11} fontWeight={600} fill="#64748b">
+        {payload?.value}
+      </text>
+      {entry?.dosage > 0 && (
+        <text x={0} y={0} dy={28} textAnchor="middle" fontSize={10} fill="#8b5cf6" fontWeight={600}>
+          {entry.dosage} mg
+        </text>
+      )}
+      {entry?.programme && entry?.penNumber > 0 && (
+        <text x={0} y={0} dy={entry?.dosage > 0 ? 40 : 28} textAnchor="middle" fontSize={9} fill="#94a3b8">
+          {entry.programme}
+        </text>
+      )}
+    </g>
+  );
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 export default function WeightChart({ patient }: WeightChartProps) {
   const data = patient.penRecords.map((record) => ({
     name: penLabels[record.penNumber],
     weight: record.measurement.weight,
     bmi: record.measurement.bmi,
     penNumber: record.penNumber,
+    dosage: record.dosage || 0,
+    programme: patient.program,
   }));
 
   const baselineWeight = data[0]?.weight ?? 0;
@@ -40,13 +80,13 @@ export default function WeightChart({ patient }: WeightChartProps) {
           Weight Progress
         </h3>
         <p className="text-sm text-slate-500">
-          Tracking weight changes across pen injections
+          Tracking weight changes across pen injections — showing programme &amp; dosage
         </p>
       </div>
 
-      <div className="h-72">
+      <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 45 }}>
             <defs>
               <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -56,8 +96,9 @@ export default function WeightChart({ patient }: WeightChartProps) {
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 12, fill: "#64748b" }}
+              tick={<CustomXTick chartData={data} />}
               axisLine={{ stroke: "#cbd5e1" }}
+              height={50}
             />
             <YAxis
               domain={[minWeight - padding, maxWeight + padding]}
@@ -65,17 +106,7 @@ export default function WeightChart({ patient }: WeightChartProps) {
               axisLine={{ stroke: "#cbd5e1" }}
               unit=" kg"
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#fff",
-                border: "1px solid #e2e8f0",
-                borderRadius: "12px",
-                boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
-                padding: "12px 16px",
-              }}
-              formatter={(value: unknown) => [`${Number(value).toFixed(1)} kg`, "Weight"]}
-              labelStyle={{ fontWeight: 600, color: "#1e293b", marginBottom: 4 }}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <ReferenceLine
               y={baselineWeight}
               stroke="#f59e0b"

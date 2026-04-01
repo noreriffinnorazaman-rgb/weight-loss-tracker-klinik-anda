@@ -81,6 +81,11 @@ export default function PenTimeline({ patient, onAddRecord, onDeletePenRecord }:
                     {record.measurement.weight} kg
                   </span>
                 )}
+                {record && record.dosage > 0 && (
+                  <span className="text-xs text-purple-500 font-semibold mt-0.5">
+                    {record.dosage} mg
+                  </span>
+                )}
                 {isCompleted && pen > 0 && onDeletePenRecord && (
                   <button
                     onClick={() => {

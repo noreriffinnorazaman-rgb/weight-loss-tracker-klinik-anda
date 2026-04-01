@@ -81,6 +81,7 @@ export default function Home() {
     height: number;
     program: ProgramType;
     baseline: Measurement;
+    dosage: number;
   }) => {
     setSyncStatus("syncing");
     await addPatient({
@@ -91,6 +92,7 @@ export default function Home() {
       penRecords: [
         {
           penNumber: 0,
+          dosage: data.dosage,
           measurement: data.baseline,
         },
       ],
@@ -127,10 +129,10 @@ export default function Home() {
     refresh();
   };
 
-  const handleSaveRecord = async (penNumber: PenNumber, measurement: Measurement) => {
+  const handleSaveRecord = async (penNumber: PenNumber, measurement: Measurement, dosage: number = 0) => {
     if (!selectedPatientId) return;
     setSyncStatus("syncing");
-    await addPenRecord(selectedPatientId, penNumber, measurement);
+    await addPenRecord(selectedPatientId, penNumber, measurement, dosage);
     await refresh();
     setShowForm(false);
   };

@@ -17,6 +17,7 @@ export interface Measurement {
 
 export interface PenRecord {
   penNumber: PenNumber;
+  dosage: number; // mg — dosage used for this pen
   measurement: Measurement;
 }
 

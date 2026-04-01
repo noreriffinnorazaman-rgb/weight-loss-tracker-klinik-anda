@@ -67,6 +67,11 @@ export default function MeasurementTable({ patient, onDeletePenRecord }: Measure
                   <div className="text-slate-400 font-normal normal-case mt-0.5">
                     {record.measurement.date}
                   </div>
+                  {record.dosage > 0 && (
+                    <div className="text-purple-500 font-semibold normal-case mt-0.5">
+                      {record.dosage} mg
+                    </div>
+                  )}
                 </th>
               ))}
               {records.length >= 2 && (

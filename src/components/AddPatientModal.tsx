@@ -12,6 +12,7 @@ interface AddPatientModalProps {
     height: number;
     program: ProgramType;
     baseline: Measurement;
+    dosage: number;
   }) => void;
 }
 
@@ -59,6 +60,7 @@ export default function AddPatientModal({
         ldl: parseFloat(ldl) || 0,
         date: new Date().toISOString().split("T")[0],
       },
+      dosage: 0,
     });
   };
 
@@ -111,12 +113,11 @@ export default function AddPatientModal({
                 Date of Birth *
               </label>
               <input
-                type="text"
+                type="date"
                 required
                 value={dob}
                 onChange={(e) => setDob(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
-                placeholder="e.g. 15th March 1990"
               />
             </div>
           </div>

@@ -19,6 +19,7 @@ const initialPatients: Patient[] = [
     penRecords: [
       {
         penNumber: 0,
+        dosage: 0,
         measurement: {
           weight: 64.9, bmi: 28.84, fatMass: 16.9, muscleMass: 18.9,
           waistCircumference: 81.28, hba1c: 7.9, totalCholesterol: 4.35,
@@ -37,6 +38,7 @@ const initialPatients: Patient[] = [
     penRecords: [
       {
         penNumber: 0,
+        dosage: 0,
         measurement: {
           weight: 98.4, bmi: 34, fatMass: 38.9, muscleMass: 23.4,
           waistCircumference: 111.7, hba1c: 5.8, totalCholesterol: 4.95,
@@ -55,6 +57,7 @@ const initialPatients: Patient[] = [
     penRecords: [
       {
         penNumber: 0,
+        dosage: 0,
         measurement: {
           weight: 120.4, bmi: 42.7, fatMass: 53.1, muscleMass: 26.5,
           waistCircumference: 132, hba1c: 5.4, totalCholesterol: 5.93,
@@ -157,6 +160,7 @@ export async function addPatient(
     patient: {
       name: patient.name,
       dob: patient.dob,
+      height: patient.height,
       program: patient.program,
       penRecords: patient.penRecords,
     },
@@ -191,7 +195,8 @@ export async function addPatient(
 export async function addPenRecord(
   patientId: string,
   penNumber: PenNumber,
-  measurement: Measurement
+  measurement: Measurement,
+  dosage: number = 0
 ): Promise<void> {
   // Send directly to sheet — adds a row for this pen
   const sheetOk = await sendToSheet({
@@ -199,6 +204,7 @@ export async function addPenRecord(
     patientId,
     penNumber,
     measurement,
+    dosage,
   });
 
   // Also update local cache
@@ -209,9 +215,9 @@ export async function addPenRecord(
       (r) => r.penNumber === penNumber
     );
     if (existingIndex >= 0) {
-      patient.penRecords[existingIndex] = { penNumber, measurement };
+      patient.penRecords[existingIndex] = { penNumber, dosage, measurement };
     } else {
-      patient.penRecords.push({ penNumber, measurement });
+      patient.penRecords.push({ penNumber, dosage, measurement });
     }
     patient.penRecords.sort((a, b) => a.penNumber - b.penNumber);
     saveLocal(patients);
