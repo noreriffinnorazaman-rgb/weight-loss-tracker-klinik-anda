@@ -1,11 +1,12 @@
 "use client";
 
-import { Trash2, Undo2 } from "lucide-react";
+import { Trash2, Undo2, Pencil } from "lucide-react";
 import { Patient, PenNumber } from "@/lib/types";
 
 interface MeasurementTableProps {
   patient: Patient;
   onDeletePenRecord?: (penNumber: PenNumber) => void;
+  onEditPenRecord?: (penNumber: PenNumber) => void;
 }
 
 const penLabels = ["Baseline", "Pen 1", "Pen 2", "Pen 3", "Pen 4"];
@@ -22,7 +23,7 @@ const metrics = [
   { key: "ldl", label: "LDL", unit: "mmol/L" },
 ] as const;
 
-export default function MeasurementTable({ patient, onDeletePenRecord }: MeasurementTableProps) {
+export default function MeasurementTable({ patient, onDeletePenRecord, onEditPenRecord }: MeasurementTableProps) {
   const records = patient.penRecords;
 
   return (
@@ -32,7 +33,7 @@ export default function MeasurementTable({ patient, onDeletePenRecord }: Measure
           All Measurements
         </h3>
         <p className="text-sm text-slate-500">
-          Detailed comparison across all pen stages — click <Undo2 className="w-3.5 h-3.5 inline" /> to undo/delete a record
+          Detailed comparison across all pen stages — click <Pencil className="w-3.5 h-3.5 inline" /> to edit or <Undo2 className="w-3.5 h-3.5 inline" /> to delete
         </p>
       </div>
 
@@ -50,6 +51,15 @@ export default function MeasurementTable({ patient, onDeletePenRecord }: Measure
                 >
                   <div className="flex items-center justify-center gap-1.5">
                     <span>{penLabels[record.penNumber]}</span>
+                    {onEditPenRecord && (
+                      <button
+                        onClick={() => onEditPenRecord(record.penNumber as PenNumber)}
+                        className="p-0.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                        title={`Edit ${penLabels[record.penNumber]} record`}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     {onDeletePenRecord && record.penNumber > 0 && (
                       <button
                         onClick={() => {

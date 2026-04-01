@@ -85,6 +85,11 @@ function handleWrite(data) {
     return jsonResponse({ success: true, action: 'deletePenRecord' });
   }
 
+  if (data.action === 'editPenRecord') {
+    var r3 = editPenRecordInSheet(data.patientId, data.penNumber, data.measurement, data.dosage || 0);
+    return jsonResponse(r3);
+  }
+
   return jsonResponse({ error: 'Unknown action: ' + data.action });
 }
 
@@ -324,6 +329,51 @@ function addPenRecordToSheet(patientId, penNumber, measurement, dosage) {
   SpreadsheetApp.flush();
 
   return { success: true, action: 'addPenRecord', patientId: patientId, penNumber: penNumber };
+}
+
+// ============================================================
+// EDIT PEN RECORD: Update an existing pen record row in-place
+// ============================================================
+function editPenRecordInSheet(patientId, penNumber, measurement, dosage) {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  var data = sheet.getDataRange().getValues();
+
+  var patientNo = parseInt(patientId.replace('patient-', ''));
+  if (isNaN(patientNo)) {
+    return { success: false, error: 'Invalid patient ID: ' + patientId };
+  }
+
+  var currentPatientNo = null;
+  for (var i = 1; i < data.length; i++) {
+    var cellNo = data[i][0];
+    if (cellNo !== '' && cellNo !== null && cellNo !== undefined && !isNaN(parseFloat(cellNo))) {
+      currentPatientNo = parseInt(cellNo);
+    }
+    if (currentPatientNo === patientNo) {
+      var rowPen = parseInt(data[i][14]);
+      if (rowPen === penNumber) {
+        var m = measurement || {};
+        // Update measurement columns (D-L), pen number (O), dosage (Q)
+        var rowIdx = i + 1; // 1-indexed for Sheets
+        sheet.getRange(rowIdx, 4).setValue(m.weight || 0);        // D: Weight
+        sheet.getRange(rowIdx, 5).setValue(m.bmi || 0);           // E: BMI
+        sheet.getRange(rowIdx, 6).setValue(m.fatMass || 0);       // F: Fat Mass
+        sheet.getRange(rowIdx, 7).setValue(m.muscleMass || 0);    // G: Muscle Mass
+        sheet.getRange(rowIdx, 8).setValue(m.waistCircumference || 0); // H: Waist
+        sheet.getRange(rowIdx, 9).setValue(m.hba1c || 0);         // I: HbA1c
+        sheet.getRange(rowIdx, 10).setValue(m.totalCholesterol || 0); // J: Cholesterol
+        sheet.getRange(rowIdx, 11).setValue(m.hdl || 0);          // K: HDL
+        sheet.getRange(rowIdx, 12).setValue(m.ldl || 0);          // L: LDL
+        sheet.getRange(rowIdx, 13).setValue(m.date || new Date().toISOString().split('T')[0]); // M: Date
+        sheet.getRange(rowIdx, 17).setValue(dosage || 0);         // Q: Dosage
+        SpreadsheetApp.flush();
+        return { success: true, action: 'editPenRecord', patientId: patientId, penNumber: penNumber };
+      }
+    }
+  }
+
+  return { success: false, error: 'Pen record not found: patient=' + patientId + ' pen=' + penNumber };
 }
 
 // ============================================================

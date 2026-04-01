@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X, Syringe } from "lucide-react";
-import { PenNumber, Measurement } from "@/lib/types";
+import { PenNumber, PenRecord, Measurement } from "@/lib/types";
 
 interface PenRecordFormProps {
   patientName: string;
@@ -10,6 +10,7 @@ interface PenRecordFormProps {
   nextPen: PenNumber;
   onClose: () => void;
   onSave: (penNumber: PenNumber, measurement: Measurement, dosage: number) => void;
+  editRecord?: PenRecord; // if provided, form is in edit mode
 }
 
 function calcBmi(weightKg: number, heightCm: number): number {
@@ -24,23 +25,28 @@ export default function PenRecordForm({
   nextPen,
   onClose,
   onSave,
+  editRecord,
 }: PenRecordFormProps) {
-  const [weight, setWeight] = useState("");
-  const [dosage, setDosage] = useState("");
-  const [fatMass, setFatMass] = useState("");
-  const [muscleMass, setMuscleMass] = useState("");
-  const [waist, setWaist] = useState("");
-  const [hba1c, setHba1c] = useState("");
-  const [cholesterol, setCholesterol] = useState("");
-  const [hdl, setHdl] = useState("");
-  const [ldl, setLdl] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const isEdit = !!editRecord;
+  const em = editRecord?.measurement;
+  const [weight, setWeight] = useState(em ? String(em.weight) : "");
+  const [dosage, setDosage] = useState(editRecord ? String(editRecord.dosage || "") : "");
+  const [fatMass, setFatMass] = useState(em ? String(em.fatMass) : "");
+  const [muscleMass, setMuscleMass] = useState(em ? String(em.muscleMass) : "");
+  const [waist, setWaist] = useState(em ? String(em.waistCircumference) : "");
+  const [hba1c, setHba1c] = useState(em ? String(em.hba1c) : "");
+  const [cholesterol, setCholesterol] = useState(em ? String(em.totalCholesterol) : "");
+  const [hdl, setHdl] = useState(em ? String(em.hdl) : "");
+  const [ldl, setLdl] = useState(em ? String(em.ldl) : "");
+  const [date, setDate] = useState(em?.date || new Date().toISOString().split("T")[0]);
 
   const autoBmi = calcBmi(parseFloat(weight) || 0, patientHeight);
+  const activePen = isEdit ? editRecord.penNumber : nextPen;
+  const penLabel = activePen === 0 ? "Baseline" : `Pen ${activePen}`;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(nextPen, {
+    onSave(activePen as PenNumber, {
       weight: parseFloat(weight) || 0,
       bmi: autoBmi,
       fatMass: parseFloat(fatMass) || 0,
@@ -54,8 +60,6 @@ export default function PenRecordForm({
     }, parseFloat(dosage) || 0);
   };
 
-  const penLabel = nextPen === 0 ? "Baseline" : `Pen ${nextPen}`;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
@@ -66,7 +70,7 @@ export default function PenRecordForm({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-800">
-                Record {penLabel} Data
+                {isEdit ? `Edit ${penLabel} Data` : `Record ${penLabel} Data`}
               </h2>
               <p className="text-sm text-slate-500">{patientName}</p>
             </div>
@@ -233,7 +237,7 @@ export default function PenRecordForm({
               type="submit"
               className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm cursor-pointer"
             >
-              Save {penLabel} Record
+              {isEdit ? `Update ${penLabel}` : `Save ${penLabel} Record`}
             </button>
           </div>
         </form>

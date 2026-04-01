@@ -1,17 +1,18 @@
 "use client";
 
-import { Check, Circle, Syringe, Trash2 } from "lucide-react";
+import { Check, Circle, Syringe, Trash2, Pencil } from "lucide-react";
 import { Patient, PenNumber } from "@/lib/types";
 
 interface PenTimelineProps {
   patient: Patient;
   onAddRecord: () => void;
   onDeletePenRecord?: (penNumber: PenNumber) => void;
+  onEditPenRecord?: (penNumber: PenNumber) => void;
 }
 
 const penLabels = ["Baseline", "Pen 1", "Pen 2", "Pen 3", "Pen 4"];
 
-export default function PenTimeline({ patient, onAddRecord, onDeletePenRecord }: PenTimelineProps) {
+export default function PenTimeline({ patient, onAddRecord, onDeletePenRecord, onEditPenRecord }: PenTimelineProps) {
   const completedPens = patient.penRecords.map((r) => r.penNumber);
   const nextPen = (completedPens.length <= 4
     ? completedPens.length
@@ -85,6 +86,15 @@ export default function PenTimeline({ patient, onAddRecord, onDeletePenRecord }:
                   <span className="text-xs text-purple-500 font-semibold mt-0.5">
                     {record.dosage} mg
                   </span>
+                )}
+                {isCompleted && onEditPenRecord && (
+                  <button
+                    onClick={() => onEditPenRecord(pen as PenNumber)}
+                    className="mt-1 p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                    title={`Edit ${penLabels[pen]} record`}
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
                 )}
                 {isCompleted && pen > 0 && onDeletePenRecord && (
                   <button

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Patient, ProgramType, PenNumber, Measurement } from "@/lib/types";
+import { Patient, ProgramType, PenNumber, PenRecord, Measurement } from "@/lib/types";
 import {
   getPatients,
   addPatient,
   deletePatient,
   resetData,
   addPenRecord,
+  editPenRecord,
   updatePatientProgram,
   deletePenRecord,
 } from "@/lib/store";
@@ -32,6 +33,7 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingPenRecord, setEditingPenRecord] = useState<PenRecord | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("syncing");
   const [lastSync, setLastSync] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -132,9 +134,25 @@ export default function Home() {
   const handleSaveRecord = async (penNumber: PenNumber, measurement: Measurement, dosage: number = 0) => {
     if (!selectedPatientId) return;
     setSyncStatus("syncing");
-    await addPenRecord(selectedPatientId, penNumber, measurement, dosage);
+    if (editingPenRecord) {
+      // Editing an existing pen record — update in-place
+      await editPenRecord(selectedPatientId, penNumber, measurement, dosage);
+    } else {
+      // Adding a new pen record
+      await addPenRecord(selectedPatientId, penNumber, measurement, dosage);
+    }
     await refresh();
     setShowForm(false);
+    setEditingPenRecord(null);
+  };
+
+  const handleEditPenRecord = (penNumber: PenNumber) => {
+    if (!selectedPatient) return;
+    const record = selectedPatient.penRecords.find((r) => r.penNumber === penNumber);
+    if (record) {
+      setEditingPenRecord(record);
+      setShowForm(true);
+    }
   };
 
   const handleProgramChange = async (program: ProgramType) => {
@@ -286,8 +304,9 @@ export default function Home() {
           {/* Pen timeline */}
           <PenTimeline
             patient={selectedPatient}
-            onAddRecord={() => setShowForm(true)}
+            onAddRecord={() => { setEditingPenRecord(null); setShowForm(true); }}
             onDeletePenRecord={handleDeletePenRecord}
+            onEditPenRecord={handleEditPenRecord}
           />
 
           {/* Charts */}
@@ -305,17 +324,18 @@ export default function Home() {
           )}
 
           {/* Measurement table */}
-          <MeasurementTable patient={selectedPatient} onDeletePenRecord={handleDeletePenRecord} />
+          <MeasurementTable patient={selectedPatient} onDeletePenRecord={handleDeletePenRecord} onEditPenRecord={handleEditPenRecord} />
         </main>
 
         {/* Pen record form modal */}
-        {showForm && nextPen >= 0 && nextPen <= 4 && (
+        {showForm && (editingPenRecord || (nextPen >= 0 && nextPen <= 4)) && (
           <PenRecordForm
             patientName={selectedPatient.name}
             patientHeight={selectedPatient.height || 0}
             nextPen={nextPen as PenNumber}
-            onClose={() => setShowForm(false)}
+            onClose={() => { setShowForm(false); setEditingPenRecord(null); }}
             onSave={handleSaveRecord}
+            editRecord={editingPenRecord || undefined}
           />
         )}
       </div>

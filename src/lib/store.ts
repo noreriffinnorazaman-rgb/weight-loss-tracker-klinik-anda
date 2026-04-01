@@ -278,6 +278,42 @@ export async function deletePatient(patientId: string): Promise<void> {
 }
 
 // ============================================================
+// EDIT PEN RECORD: Update an existing pen record in-place
+// ============================================================
+export async function editPenRecord(
+  patientId: string,
+  penNumber: PenNumber,
+  measurement: Measurement,
+  dosage: number = 0
+): Promise<void> {
+  // Send editPenRecord to sheet — updates the row in-place
+  const sheetOk = await sendToSheet({
+    action: "editPenRecord",
+    patientId,
+    penNumber,
+    measurement,
+    dosage,
+  });
+
+  // Update local cache
+  const patients = (loadLocal() || await getPatients());
+  const patient = patients.find((p) => p.id === patientId);
+  if (patient) {
+    const existingIndex = patient.penRecords.findIndex(
+      (r) => r.penNumber === penNumber
+    );
+    if (existingIndex >= 0) {
+      patient.penRecords[existingIndex] = { penNumber, dosage, measurement };
+    }
+    saveLocal(patients);
+  }
+
+  if (!sheetOk) {
+    sendToSheet({ action: "writeAll", patients });
+  }
+}
+
+// ============================================================
 // DELETE PEN RECORD: Remove a specific pen record (undo)
 // ============================================================
 export async function deletePenRecord(
