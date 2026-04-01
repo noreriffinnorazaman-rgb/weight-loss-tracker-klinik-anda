@@ -14,6 +14,7 @@ const initialPatients: Patient[] = [
     no: 1,
     name: "Che Azizah bte Hj Ahmad",
     dob: "12th Oct 1968",
+    height: 150,
     program: "Ozempic",
     penRecords: [
       {
@@ -31,6 +32,7 @@ const initialPatients: Patient[] = [
     no: 2,
     name: "Muhamad Izzat Bin Zulkifli",
     dob: "23rd November 1991",
+    height: 170,
     program: "Ozempic",
     penRecords: [
       {
@@ -48,6 +50,7 @@ const initialPatients: Patient[] = [
     no: 3,
     name: "Noreriffin Bin Norazaman",
     dob: "21st Oct 1986",
+    height: 168,
     program: "Ozempic",
     penRecords: [
       {
@@ -265,6 +268,33 @@ export async function deletePatient(patientId: string): Promise<void> {
 
   if (!sheetOk) {
     sendToSheet({ action: "writeAll", patients: filtered });
+  }
+}
+
+// ============================================================
+// DELETE PEN RECORD: Remove a specific pen record (undo)
+// ============================================================
+export async function deletePenRecord(
+  patientId: string,
+  penNumber: PenNumber
+): Promise<void> {
+  const sheetOk = await sendToSheet({
+    action: "deletePenRecord",
+    patientId,
+    penNumber,
+  });
+
+  const patients = (loadLocal() || await getPatients());
+  const patient = patients.find((p) => p.id === patientId);
+  if (patient) {
+    patient.penRecords = patient.penRecords.filter(
+      (r) => r.penNumber !== penNumber
+    );
+    saveLocal(patients);
+  }
+
+  if (!sheetOk) {
+    sendToSheet({ action: "writeAll", patients });
   }
 }
 

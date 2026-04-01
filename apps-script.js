@@ -1,16 +1,14 @@
 // Google Apps Script for Weight Loss Tracker - Klinik Anda Kangar 2026
 // Deploy this as a Web App to handle Google Sheets operations
 //
-// IMPORTANT: All WRITE operations use doPost with JSON body.
-// The frontend must send POST with redirect:"follow" to handle Apps Script 302 redirect.
-//
-// SPREADSHEET COLUMNS (A-O):
+// SPREADSHEET COLUMNS (A-P):
 // A: No | B: Name | C: DOB | D: WT(kg) | E: BMI | F: Fat Mass (kg) | G: Muscle Mass(kg)
 // H: Waist Circumference (cm) | I: HbA1c(%) | J: Total cholesterol (mmol/L)
-// K: HDL | L: LDL | M: Date | N: Programme | O: Pen Number
+// K: HDL | L: LDL | M: Date | N: Programme | O: Pen Number | P: Height (cm)
 
 var SPREADSHEET_ID = '1eq_mwt8gzjeLamRLv76l_nBB-wu4zNJjhZ6at3FTXnA';
 var SHEET_NAME = 'Sheet1';
+var NUM_COLS = 16;
 
 // ============================================================
 // doGet: READ patients or handle action via URL params
@@ -23,7 +21,6 @@ function doGet(e) {
       return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
     }
 
-    // WRITE via GET (reliable for cross-origin) — data passed as encoded JSON in ?data= param
     if (action === 'save') {
       var jsonData = e.parameter.data;
       if (!jsonData) return jsonResponse({ error: 'Missing data parameter' });
@@ -31,7 +28,6 @@ function doGet(e) {
       return handleWrite(payload);
     }
 
-    // Default: read all patients
     var patients = readPatients();
     return jsonResponse(patients);
   } catch (error) {
@@ -52,7 +48,7 @@ function doPost(e) {
 }
 
 // ============================================================
-// Unified write handler for both GET?action=save and POST
+// Unified write handler
 // ============================================================
 function handleWrite(data) {
   if (!data || !data.action) {
@@ -65,13 +61,13 @@ function handleWrite(data) {
   }
 
   if (data.action === 'addPatient') {
-    var result = addSinglePatient(data.patient);
-    return jsonResponse(result);
+    var r1 = addSinglePatient(data.patient);
+    return jsonResponse(r1);
   }
 
   if (data.action === 'addPenRecord') {
-    var result2 = addPenRecordToSheet(data.patientId, data.penNumber, data.measurement);
-    return jsonResponse(result2);
+    var r2 = addPenRecordToSheet(data.patientId, data.penNumber, data.measurement);
+    return jsonResponse(r2);
   }
 
   if (data.action === 'deletePatient') {
@@ -82,6 +78,11 @@ function handleWrite(data) {
   if (data.action === 'updateProgram') {
     updatePatientProgram(data.patientId, data.program);
     return jsonResponse({ success: true, action: 'updateProgram' });
+  }
+
+  if (data.action === 'deletePenRecord') {
+    deletePenRecordFromSheet(data.patientId, data.penNumber);
+    return jsonResponse({ success: true, action: 'deletePenRecord' });
   }
 
   return jsonResponse({ error: 'Unknown action: ' + data.action });
@@ -113,14 +114,12 @@ function readPatients() {
     var row = data[i];
     if (!row) continue;
 
-    // Check if row is completely empty
     var isEmpty = true;
     for (var c = 0; c < row.length; c++) {
       if (row[c] !== '' && row[c] !== null && row[c] !== undefined) { isEmpty = false; break; }
     }
     if (isEmpty) continue;
 
-    // Determine patient: col A has a number = new patient, empty = continuation
     var noVal = row[0];
     var hasNo = (noVal !== '' && noVal !== null && noVal !== undefined && !isNaN(parseFloat(noVal)));
     var patientId;
@@ -143,6 +142,7 @@ function readPatients() {
         no: parseInt(noVal) || (patientOrder.length + 1),
         name: String(row[1] || '').trim(),
         dob: String(row[2] || '').trim(),
+        height: parseFloat(row[15]) || 0,
         program: String(row[13] || 'Ozempic').trim(),
         penRecords: []
       };
@@ -187,13 +187,10 @@ function writeAllPatients(patients) {
   var header = [
     'No', 'Name', 'DOB', 'WT(kg)', 'BMI', 'Fat Mass (kg)', 'Muscle Mass(kg)',
     'Waist Circumference (cm)', 'HbA1c(%)', 'Total cholesterol (mmol/L)',
-    'HDL', 'LDL', 'Date', 'Programme', 'Pen Number'
+    'HDL', 'LDL', 'Date', 'Programme', 'Pen Number', 'Height (cm)'
   ];
 
-  // Clear everything
   sheet.clear();
-
-  // Write header
   sheet.getRange(1, 1, 1, header.length).setValues([header]);
   sheet.getRange(1, 1, 1, header.length)
     .setFontWeight('bold')
@@ -215,14 +212,17 @@ function writeAllPatients(patients) {
         m.waistCircumference || '', m.hba1c || '', m.totalCholesterol || '',
         m.hdl || '', m.ldl || '', m.date || '',
         ri === 0 ? (patient.program || 'Ozempic') : '',
-        patient.penRecords[ri].penNumber !== undefined ? patient.penRecords[ri].penNumber : 0
+        patient.penRecords[ri].penNumber !== undefined ? patient.penRecords[ri].penNumber : 0,
+        ri === 0 ? (patient.height || 0) : ''
       ]);
     }
   }
 
   if (rows.length > 0) {
-    sheet.getRange(2, 1, rows.length, 15).setValues(rows);
+    sheet.getRange(2, 1, rows.length, NUM_COLS).setValues(rows);
   }
+
+  SpreadsheetApp.flush();
 }
 
 // ============================================================
@@ -251,12 +251,11 @@ function addSinglePatient(patient) {
     m.hdl || 0, m.ldl || 0,
     m.date || new Date().toISOString().split('T')[0],
     patient.program || 'Ozempic',
-    0
+    0,
+    patient.height || 0
   ];
 
   sheet.appendRow(row);
-
-  // Force spreadsheet to save
   SpreadsheetApp.flush();
 
   return {
@@ -267,6 +266,7 @@ function addSinglePatient(patient) {
       no: newNo,
       name: patient.name,
       dob: patient.dob,
+      height: patient.height || 0,
       program: patient.program || 'Ozempic',
       penRecords: [{ penNumber: 0, measurement: m }]
     }
@@ -274,20 +274,18 @@ function addSinglePatient(patient) {
 }
 
 // ============================================================
-// ADD PEN RECORD: Append a new pen measurement row for an existing patient
+// ADD PEN RECORD: Insert a new pen measurement row for a patient
 // ============================================================
 function addPenRecordToSheet(patientId, penNumber, measurement) {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var sheet = ss.getSheetByName(SHEET_NAME);
   var data = sheet.getDataRange().getValues();
 
-  // Find the patient number from the ID (e.g. "patient-3" => 3)
   var patientNo = parseInt(patientId.replace('patient-', ''));
   if (isNaN(patientNo)) {
     return { success: false, error: 'Invalid patient ID: ' + patientId };
   }
 
-  // Find the last row belonging to this patient
   var lastRowIndex = -1;
   var currentPatientNo = null;
   for (var i = 1; i < data.length; i++) {
@@ -306,24 +304,49 @@ function addPenRecordToSheet(patientId, penNumber, measurement) {
 
   var m = measurement || {};
   var newRow = [
-    '',  // No column empty for continuation rows
-    '',  // Name empty
-    '',  // DOB empty
+    '', '', '',
     m.weight || 0, m.bmi || 0, m.fatMass || 0, m.muscleMass || 0,
     m.waistCircumference || 0, m.hba1c || 0, m.totalCholesterol || 0,
     m.hdl || 0, m.ldl || 0,
     m.date || new Date().toISOString().split('T')[0],
-    '',  // Programme empty for continuation
-    penNumber || 0
+    '',
+    penNumber || 0,
+    ''
   ];
 
-  // Insert after the last row of this patient
   sheet.insertRowAfter(lastRowIndex + 1);
-  sheet.getRange(lastRowIndex + 2, 1, 1, 15).setValues([newRow]);
-
+  sheet.getRange(lastRowIndex + 2, 1, 1, NUM_COLS).setValues([newRow]);
   SpreadsheetApp.flush();
 
   return { success: true, action: 'addPenRecord', patientId: patientId, penNumber: penNumber };
+}
+
+// ============================================================
+// DELETE PEN RECORD: Remove a specific pen record row (undo)
+// ============================================================
+function deletePenRecordFromSheet(patientId, penNumber) {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  var data = sheet.getDataRange().getValues();
+
+  var patientNo = parseInt(patientId.replace('patient-', ''));
+  if (isNaN(patientNo)) return;
+
+  var currentPatientNo = null;
+  for (var i = 1; i < data.length; i++) {
+    var cellNo = data[i][0];
+    if (cellNo !== '' && cellNo !== null && cellNo !== undefined && !isNaN(parseFloat(cellNo))) {
+      currentPatientNo = parseInt(cellNo);
+    }
+    if (currentPatientNo === patientNo) {
+      var rowPen = parseInt(data[i][14]);
+      if (rowPen === penNumber && penNumber > 0) {
+        sheet.deleteRow(i + 1);
+        SpreadsheetApp.flush();
+        return;
+      }
+    }
+  }
 }
 
 // ============================================================
@@ -339,7 +362,6 @@ function deletePatientById(patientId) {
     }
   }
   writeAllPatients(filtered);
-  SpreadsheetApp.flush();
 }
 
 // ============================================================
@@ -356,7 +378,7 @@ function updatePatientProgram(patientId, program) {
   for (var i = 1; i < data.length; i++) {
     var cellNo = data[i][0];
     if (cellNo !== '' && cellNo !== null && cellNo !== undefined && parseInt(cellNo) === patientNo) {
-      sheet.getRange(i + 1, 14).setValue(program);  // Column N = Programme
+      sheet.getRange(i + 1, 14).setValue(program);
       SpreadsheetApp.flush();
       return;
     }
@@ -364,7 +386,7 @@ function updatePatientProgram(patientId, program) {
 }
 
 // ============================================================
-// SETUP: Run once to add missing Date/Programme/PenNumber columns
+// SETUP: Run once to add Height column and missing columns
 // ============================================================
 function setupSpreadsheet() {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -376,29 +398,29 @@ function setupSpreadsheet() {
   var fullHeader = [
     'No', 'Name', 'DOB', 'WT(kg)', 'BMI', 'Fat Mass (kg)', 'Muscle Mass(kg)',
     'Waist Circumference (cm)', 'HbA1c(%)', 'Total cholesterol (mmol/L)',
-    'HDL', 'LDL', 'Date', 'Programme', 'Pen Number'
+    'HDL', 'LDL', 'Date', 'Programme', 'Pen Number', 'Height (cm)'
   ];
 
-  if (data[0].length < fullHeader.length) {
-    sheet.getRange(1, 1, 1, fullHeader.length).setValues([fullHeader]);
+  sheet.getRange(1, 1, 1, fullHeader.length).setValues([fullHeader]);
 
-    for (var i = 1; i < data.length; i++) {
-      if (data[i][0]) {
-        if (!data[i][12]) sheet.getRange(i + 1, 13).setValue(new Date().toISOString().split('T')[0]);
-        if (!data[i][13]) sheet.getRange(i + 1, 14).setValue('Ozempic');
-        if (data[i][14] === '' || data[i][14] === null || data[i][14] === undefined) {
-          sheet.getRange(i + 1, 15).setValue(0);
-        }
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0]) {
+      if (!data[i][12]) sheet.getRange(i + 1, 13).setValue(new Date().toISOString().split('T')[0]);
+      if (!data[i][13]) sheet.getRange(i + 1, 14).setValue('Ozempic');
+      if (data[i][14] === '' || data[i][14] === null || data[i][14] === undefined) {
+        sheet.getRange(i + 1, 15).setValue(0);
+      }
+      if (data[i][15] === '' || data[i][15] === null || data[i][15] === undefined) {
+        sheet.getRange(i + 1, 16).setValue(0);
       }
     }
-
-    sheet.getRange(1, 1, 1, fullHeader.length)
-      .setFontWeight('bold')
-      .setBackground('#e8f5e9');
-
-    SpreadsheetApp.flush();
   }
 
+  sheet.getRange(1, 1, 1, fullHeader.length)
+    .setFontWeight('bold')
+    .setBackground('#e8f5e9');
+
+  SpreadsheetApp.flush();
   Logger.log('Setup complete. Columns: ' + fullHeader.length);
 }
 
@@ -416,24 +438,4 @@ function testConnection() {
   var sheet = ss.getSheetByName(SHEET_NAME);
   var data = sheet.getDataRange().getValues();
   Logger.log('Rows: ' + data.length + ', Cols: ' + (data[0] ? data[0].length : 0));
-}
-
-function testAddPatient() {
-  var result = addSinglePatient({
-    name: 'Test Patient',
-    dob: '1st Jan 2000',
-    program: 'Ozempic',
-    penRecords: [{
-      penNumber: 0,
-      measurement: { weight: 80, bmi: 25, fatMass: 20, muscleMass: 30, waistCircumference: 90, hba1c: 5.5, totalCholesterol: 4.0, hdl: 1.2, ldl: 2.5, date: '2026-03-20' }
-    }]
-  });
-  Logger.log(JSON.stringify(result));
-}
-
-function testAddPenRecord() {
-  var result = addPenRecordToSheet('patient-1', 1, {
-    weight: 63, bmi: 28, fatMass: 15, muscleMass: 19, waistCircumference: 79, hba1c: 7.5, totalCholesterol: 4.2, hdl: 1.5, ldl: 2.1, date: '2026-03-20'
-  });
-  Logger.log(JSON.stringify(result));
 }

@@ -6,19 +6,26 @@ import { PenNumber, Measurement } from "@/lib/types";
 
 interface PenRecordFormProps {
   patientName: string;
+  patientHeight: number;
   nextPen: PenNumber;
   onClose: () => void;
   onSave: (penNumber: PenNumber, measurement: Measurement) => void;
 }
 
+function calcBmi(weightKg: number, heightCm: number): number {
+  if (!weightKg || !heightCm) return 0;
+  const heightM = heightCm / 100;
+  return parseFloat((weightKg / (heightM * heightM)).toFixed(2));
+}
+
 export default function PenRecordForm({
   patientName,
+  patientHeight,
   nextPen,
   onClose,
   onSave,
 }: PenRecordFormProps) {
   const [weight, setWeight] = useState("");
-  const [bmi, setBmi] = useState("");
   const [fatMass, setFatMass] = useState("");
   const [muscleMass, setMuscleMass] = useState("");
   const [waist, setWaist] = useState("");
@@ -28,11 +35,13 @@ export default function PenRecordForm({
   const [ldl, setLdl] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
+  const autoBmi = calcBmi(parseFloat(weight) || 0, patientHeight);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(nextPen, {
       weight: parseFloat(weight) || 0,
-      bmi: parseFloat(bmi) || 0,
+      bmi: autoBmi,
       fatMass: parseFloat(fatMass) || 0,
       muscleMass: parseFloat(muscleMass) || 0,
       waistCircumference: parseFloat(waist) || 0,
@@ -102,16 +111,11 @@ export default function PenRecordForm({
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">
-                  BMI *
+                  BMI (auto)
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={bmi}
-                  onChange={(e) => setBmi(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
-                />
+                <div className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-sm font-semibold text-slate-700">
+                  {autoBmi > 0 ? autoBmi.toFixed(2) : "—"}
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">

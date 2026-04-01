@@ -9,6 +9,7 @@ import {
   resetData,
   addPenRecord,
   updatePatientProgram,
+  deletePenRecord,
 } from "@/lib/store";
 import { ArrowLeft, User, Calendar, Pill, Search, Filter } from "lucide-react";
 import Header from "@/components/Header";
@@ -77,6 +78,7 @@ export default function Home() {
   const handleAddPatient = async (data: {
     name: string;
     dob: string;
+    height: number;
     program: ProgramType;
     baseline: Measurement;
   }) => {
@@ -84,6 +86,7 @@ export default function Home() {
     await addPatient({
       name: data.name,
       dob: data.dob,
+      height: data.height,
       program: data.program,
       penRecords: [
         {
@@ -136,6 +139,13 @@ export default function Home() {
     if (!selectedPatientId) return;
     setSyncStatus("syncing");
     await updatePatientProgram(selectedPatientId, program);
+    await refresh();
+  };
+
+  const handleDeletePenRecord = async (penNumber: PenNumber) => {
+    if (!selectedPatientId) return;
+    setSyncStatus("syncing");
+    await deletePenRecord(selectedPatientId, penNumber);
     await refresh();
   };
 
@@ -204,6 +214,11 @@ export default function Home() {
                     <User className="w-3.5 h-3.5" />
                     Patient #{selectedPatient.no}
                   </span>
+                  {selectedPatient.height > 0 && (
+                    <span className="flex items-center gap-1 font-medium text-slate-600">
+                      {selectedPatient.height} cm
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -270,6 +285,7 @@ export default function Home() {
           <PenTimeline
             patient={selectedPatient}
             onAddRecord={() => setShowForm(true)}
+            onDeletePenRecord={handleDeletePenRecord}
           />
 
           {/* Charts */}
@@ -287,13 +303,14 @@ export default function Home() {
           )}
 
           {/* Measurement table */}
-          <MeasurementTable patient={selectedPatient} />
+          <MeasurementTable patient={selectedPatient} onDeletePenRecord={handleDeletePenRecord} />
         </main>
 
         {/* Pen record form modal */}
         {showForm && nextPen >= 0 && nextPen <= 4 && (
           <PenRecordForm
             patientName={selectedPatient.name}
+            patientHeight={selectedPatient.height || 0}
             nextPen={nextPen as PenNumber}
             onClose={() => setShowForm(false)}
             onSave={handleSaveRecord}

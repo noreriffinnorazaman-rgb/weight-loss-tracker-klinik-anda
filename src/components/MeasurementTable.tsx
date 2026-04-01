@@ -1,9 +1,11 @@
 "use client";
 
-import { Patient } from "@/lib/types";
+import { Trash2, Undo2 } from "lucide-react";
+import { Patient, PenNumber } from "@/lib/types";
 
 interface MeasurementTableProps {
   patient: Patient;
+  onDeletePenRecord?: (penNumber: PenNumber) => void;
 }
 
 const penLabels = ["Baseline", "Pen 1", "Pen 2", "Pen 3", "Pen 4"];
@@ -20,7 +22,7 @@ const metrics = [
   { key: "ldl", label: "LDL", unit: "mmol/L" },
 ] as const;
 
-export default function MeasurementTable({ patient }: MeasurementTableProps) {
+export default function MeasurementTable({ patient, onDeletePenRecord }: MeasurementTableProps) {
   const records = patient.penRecords;
 
   return (
@@ -30,7 +32,7 @@ export default function MeasurementTable({ patient }: MeasurementTableProps) {
           All Measurements
         </h3>
         <p className="text-sm text-slate-500">
-          Detailed comparison across all pen stages
+          Detailed comparison across all pen stages — click <Undo2 className="w-3.5 h-3.5 inline" /> to undo/delete a record
         </p>
       </div>
 
@@ -46,7 +48,22 @@ export default function MeasurementTable({ patient }: MeasurementTableProps) {
                   key={record.penNumber}
                   className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider"
                 >
-                  <div>{penLabels[record.penNumber]}</div>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span>{penLabels[record.penNumber]}</span>
+                    {onDeletePenRecord && record.penNumber > 0 && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete ${penLabels[record.penNumber]} record? This will undo this pen data.`)) {
+                            onDeletePenRecord(record.penNumber as PenNumber);
+                          }
+                        }}
+                        className="p-0.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                        title={`Delete ${penLabels[record.penNumber]} record`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                   <div className="text-slate-400 font-normal normal-case mt-0.5">
                     {record.measurement.date}
                   </div>

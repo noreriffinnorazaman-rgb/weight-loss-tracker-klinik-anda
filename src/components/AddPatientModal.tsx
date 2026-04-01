@@ -9,9 +9,16 @@ interface AddPatientModalProps {
   onAdd: (data: {
     name: string;
     dob: string;
+    height: number;
     program: ProgramType;
     baseline: Measurement;
   }) => void;
+}
+
+function calcBmi(weightKg: number, heightCm: number): number {
+  if (!weightKg || !heightCm) return 0;
+  const heightM = heightCm / 100;
+  return parseFloat((weightKg / (heightM * heightM)).toFixed(2));
 }
 
 export default function AddPatientModal({
@@ -20,9 +27,9 @@ export default function AddPatientModal({
 }: AddPatientModalProps) {
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
+  const [height, setHeight] = useState("");
   const [program, setProgram] = useState<ProgramType>("Ozempic");
   const [weight, setWeight] = useState("");
-  const [bmi, setBmi] = useState("");
   const [fatMass, setFatMass] = useState("");
   const [muscleMass, setMuscleMass] = useState("");
   const [waist, setWaist] = useState("");
@@ -31,15 +38,18 @@ export default function AddPatientModal({
   const [hdl, setHdl] = useState("");
   const [ldl, setLdl] = useState("");
 
+  const autoBmi = calcBmi(parseFloat(weight) || 0, parseFloat(height) || 0);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onAdd({
       name,
       dob,
+      height: parseFloat(height) || 0,
       program,
       baseline: {
         weight: parseFloat(weight) || 0,
-        bmi: parseFloat(bmi) || 0,
+        bmi: autoBmi,
         fatMass: parseFloat(fatMass) || 0,
         muscleMass: parseFloat(muscleMass) || 0,
         waistCircumference: parseFloat(waist) || 0,
@@ -68,8 +78,8 @@ export default function AddPatientModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Full Name *
               </label>
@@ -80,6 +90,20 @@ export default function AddPatientModal({
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
                 placeholder="Patient full name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Height (cm) *
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                required
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
+                placeholder="e.g. 165"
               />
             </div>
             <div>
@@ -145,16 +169,11 @@ export default function AddPatientModal({
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">
-                  BMI *
+                  BMI (auto)
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={bmi}
-                  onChange={(e) => setBmi(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
-                />
+                <div className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-sm font-semibold text-slate-700">
+                  {autoBmi > 0 ? autoBmi.toFixed(2) : "—"}
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">

@@ -25,6 +25,7 @@ export interface Patient {
   no: number;
   name: string;
   dob: string;
+  height: number; // cm — fixed per patient, used to auto-calculate BMI
   program: ProgramType;
   penRecords: PenRecord[];
 }
