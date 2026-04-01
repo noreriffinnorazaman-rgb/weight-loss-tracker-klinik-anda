@@ -2,11 +2,18 @@
 
 import { useState } from "react";
 import { X, Syringe } from "lucide-react";
-import { PenNumber, PenRecord, Measurement } from "@/lib/types";
+import { PenNumber, PenRecord, Measurement, ProgramType } from "@/lib/types";
+
+const DOSAGE_OPTIONS: Record<ProgramType, number[]> = {
+  Ozempic: [0.25, 0.5, 1.0],
+  Wegovy: [0.25, 0.5, 1.0, 1.7, 2.4],
+  Mounjaro: [2.5, 5.0, 7.5, 10.0, 12.5, 15.0],
+};
 
 interface PenRecordFormProps {
   patientName: string;
   patientHeight: number;
+  patientProgram: ProgramType;
   nextPen: PenNumber;
   onClose: () => void;
   onSave: (penNumber: PenNumber, measurement: Measurement, dosage: number) => void;
@@ -22,6 +29,7 @@ function calcBmi(weightKg: number, heightCm: number): number {
 export default function PenRecordForm({
   patientName,
   patientHeight,
+  patientProgram,
   nextPen,
   onClose,
   onSave,
@@ -30,6 +38,7 @@ export default function PenRecordForm({
   const isEdit = !!editRecord;
   const em = editRecord?.measurement;
   const [weight, setWeight] = useState(em ? String(em.weight) : "");
+  const dosageOpts = DOSAGE_OPTIONS[patientProgram] || DOSAGE_OPTIONS.Ozempic;
   const [dosage, setDosage] = useState(editRecord ? String(editRecord.dosage || "") : "");
   const [fatMass, setFatMass] = useState(em ? String(em.fatMass) : "");
   const [muscleMass, setMuscleMass] = useState(em ? String(em.muscleMass) : "");
@@ -98,17 +107,19 @@ export default function PenRecordForm({
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Dosage (mg) *
+                Dosage (mg) — {patientProgram} *
               </label>
-              <input
-                type="number"
-                step="0.25"
+              <select
                 required
                 value={dosage}
                 onChange={(e) => setDosage(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
-                placeholder="e.g. 0.25, 0.5, 1.0"
-              />
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm cursor-pointer"
+              >
+                <option value="">Select dosage...</option>
+                {dosageOpts.map((d) => (
+                  <option key={d} value={String(d)}>{d} mg</option>
+                ))}
+              </select>
             </div>
           </div>
 

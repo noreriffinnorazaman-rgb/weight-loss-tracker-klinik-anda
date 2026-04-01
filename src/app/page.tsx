@@ -332,6 +332,7 @@ export default function Home() {
           <PenRecordForm
             patientName={selectedPatient.name}
             patientHeight={selectedPatient.height || 0}
+            patientProgram={selectedPatient.program}
             nextPen={nextPen as PenNumber}
             onClose={() => { setShowForm(false); setEditingPenRecord(null); }}
             onSave={handleSaveRecord}
